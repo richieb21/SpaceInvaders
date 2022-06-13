@@ -44,7 +44,7 @@ red_laser = pygame.transform.scale(red_laser_img, (5,10))
 blue_laser_img = pygame.image.load(os.path.join(PATH, 'pixel_laser_blue.png'))
 blue_laser = pygame.transform.scale(blue_laser_img, (5,10))
 
-yellow_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_yellow.png')), (40,80))
+yellow_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_yellow.png')), (80,80))
 
 green_laser_img = pygame.image.load(os.path.join(PATH, 'pixel_laser_green.png'))
 green_laser = pygame.transform.scale(green_laser_img, (5,10))
@@ -136,6 +136,7 @@ class Player(SHIP):
         self.laser_img = yellow_laser_img
         self.mask = pygame.mask.from_surface(self.ship_img)
 
+    #moves the laser
     def move_lasers(self, velocity, objs):
         self.cooldown()
         for laser in self.lasers:
@@ -149,25 +150,29 @@ class Player(SHIP):
                         objs.remove(obj)
                         self.lasers.remove(laser)
 
-
+#enemy ship class
 class Enemy(SHIP):
 
+    #map to make classifying different types of enemy ships easier
     enemy_class = {
         "red" : (redship, red_laser),
         "green" : (greenship, green_laser),
         "blue" : (blueship, blue_laser)
     }
 
+    #constructor
     def __init__(self, x, y, color, health = 100):
         super().__init__(x,y,health)
         self.ship_img, self.laser_img = self.enemy_class[color]
         self.mask = pygame.mask.from_surface(self.ship_img)
 
+    #moves the ship
     def move(self, velocity):
         self.y += velocity
 
 clock = pygame.time.Clock()
 
+#moves the ship
 def handle_movement(pressed, ship):
     if pressed[pygame.K_LEFT] and ship.x - velocity > 0:
         ship.x -= velocity
@@ -227,7 +232,7 @@ def main():
             level += 1
             level_size += 5
             for i in range(level_size):
-                enemy = Enemy(random.randrange(100, WIDTH-100), random.randrange(-1500, -100), random.choice(["red","blue","green"]))
+                enemy = Enemy(random.randrange(100, WIDTH-100), random.randrange(-2000, -100), random.choice(["red","blue","green"]))
                 enemy_list.append(enemy)
 
         for event in pygame.event.get():
