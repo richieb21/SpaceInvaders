@@ -17,6 +17,7 @@ WIDTH, HEIGHT = 900, 1400
 SS_WIDTH, SS_HEIGHT = 82,60
 velocity = 10
 laser_velocity = -10
+enemy_velocity = 6
 charge_bar = 5
 
 RED = (255,0,0)
@@ -43,7 +44,7 @@ red_laser = pygame.transform.scale(red_laser_img, (5,10))
 blue_laser_img = pygame.image.load(os.path.join(PATH, 'pixel_laser_blue.png'))
 blue_laser = pygame.transform.scale(blue_laser_img, (5,10))
 
-yellow_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_yellow.png')), (5,10))
+yellow_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_yellow.png')), (40,80))
 
 green_laser_img = pygame.image.load(os.path.join(PATH, 'pixel_laser_green.png'))
 green_laser = pygame.transform.scale(green_laser_img, (5,10))
@@ -63,7 +64,7 @@ class Laser():
         self.mask = pygame.mask.from_surface(self.laser_img)
 
     def draw(self, window):
-        window.blit(yellow_laser_img, (self.x, self.y))
+        window.blit(self.laser_img, (self.x, self.y))
     
     def move(self, laser_vel):
         self.y += laser_vel
@@ -79,7 +80,7 @@ class Laser():
 
 class SHIP:
 
-    COOLDOWN = 36
+    COOLDOWN = 9
 
     def __init__(self, x, y, color, health = 100):
         self.x = x
@@ -99,7 +100,7 @@ class SHIP:
     def shoot(self):
         if self.cd == 0:
             shoot_sound.play()
-            laser = Laser(self.x + SS_WIDTH//2 - 5, self.y, yellow_laser_img)
+            laser = Laser(self.x + SS_WIDTH//2 - self.laser_img.get_width()//2, self.y - 40, self.laser_img)
             self.lasers.append(laser)
             self.cd = 1
 
@@ -115,15 +116,19 @@ class SHIP:
             if laser.out_of_bounds(HEIGHT):
                 self.lasers.remove(laser)
             elif laser.collision(obj):
+                hit_sound.play()
                 obj.health -= 10
                 self.lasers.remove(laser)
 
+    #accessor for width
     def get_width(self):
         return self.ship_img.get_width()
 
+    #accessor for height
     def get_height(self):
         return self.ship_img.get_height()
 
+#Player class with inherited attributes
 class Player(SHIP):
     def __init__(self, x, y, health = 100):
         super().__init__(x,y,health)
@@ -140,6 +145,7 @@ class Player(SHIP):
             else:
                 for obj in objs:    
                     if laser.collision(obj):
+                        hit_sound.play()
                         objs.remove(obj)
                         self.lasers.remove(laser)
 
@@ -175,8 +181,6 @@ def main():
     run = True
     lost = False
 
-    SS = pygame.Rect(450 - SS_WIDTH//2, 1200, SS_WIDTH, SS_HEIGHT)
-
     ship = Player(450-SS_WIDTH//2, 1200, RED)
 
     lives = 10
@@ -186,9 +190,11 @@ def main():
     def update_screen():
         screen.blit(background_cast, (0,0))
     
+        #obtaining fonts
         font = pygame.font.SysFont('calibri', 50)
         lost_font = pygame.font.SysFont('calibri', 70)
 
+        #creating indicators for lives and level
         lives_indicator = font.render(f"Lives: {lives}", 1, WHITE)
         level_indicator = font.render(f"Level: {level}", 1, WHITE)
 
@@ -239,7 +245,7 @@ def main():
                     beam_list.append(beam)
         
         for enemy in enemy_list:
-            enemy.move(5)
+            enemy.move(enemy_velocity)
             enemy.move_lasers(laser_velocity, ship)
             if (enemy.y > HEIGHT - 25):
                 enemy_list.remove(enemy)
