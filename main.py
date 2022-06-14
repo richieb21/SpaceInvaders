@@ -1,13 +1,15 @@
+#importing necessary modules
 import pygame
 import os
 import random
 
+#relative path to access files
 PATH = 'assets'
-#creating necessary variables
 
 pygame.font.init()
 pygame.mixer.init()
 
+#creating necessary variables
 background_music = pygame.mixer.Sound(os.path.join(PATH, 'background1.wav'))
 hit_sound = pygame.mixer.Sound(os.path.join(PATH, 'Hit.mp3'))
 shoot_sound = pygame.mixer.Sound(os.path.join(PATH, 'Shoot.mp3'))
@@ -19,11 +21,14 @@ FPS = 144
 
 velocity = 10
 laser_velocity = -10
+piercing_laser_vel = -20
 enemy_laser_vel = 6
 enemy_velocity = 2
 charge_bar = 5
 
 RED = (255,0,0)
+GREEN = (0,255,0)
+BLUE = (0,0,255)
 WHITE = (255,255,255)
 
 bullet_list = []
@@ -43,12 +48,11 @@ spaceship_image = pygame.image.load(os.path.join(PATH, 'spaceship_red.png'))
 spaceship = pygame.transform.rotate(pygame.transform.scale(spaceship_image, (SS_WIDTH,SS_HEIGHT)), 180)
 
 red_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_red.png')), (80,80))
-
 blue_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_blue.png')), (80,80))
-
 yellow_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_yellow.png')), (80,80))
-
 green_laser_img = pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'pixel_laser_green.png')), (80,80))
+
+piercing_laser_img = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join(PATH, 'rocket.png')), (80,80)), 90)
 
 redship = pygame.image.load(os.path.join(PATH, 'pixel_ship_red_small.png'))
 greenship = pygame.image.load(os.path.join(PATH, 'pixel_ship_green_small.png'))
@@ -59,11 +63,15 @@ background_cast = pygame.transform.scale(background, (WIDTH,HEIGHT))
 
 #Laser class
 class Laser():
-    def __init__(self, x, y, laser_img):
+    def __init__(self, x, y, laser_img, p):
         self.x = x
         self.y = y
-        self.laser_img = laser_img
+        if p:
+            self.laser_img = piercing_laser_img
+        if not(p):
+            self.laser_img = laser_img
         self.mask = pygame.mask.from_surface(self.laser_img)
+        self.piercing = p
 
     #draws the laser onto the screen
     def draw(self, window):
@@ -79,9 +87,12 @@ class Laser():
     
     #detects a collision between a laser and an object, returns true if there is a collision and returns false otherwise
     def collision(self, obj):
-        offset_x = obj.x - self.x
-        offset_y = obj.y - self.y
-        return self.mask.overlap(obj.mask, (offset_x, offset_y)) != None
+        return collide(self,obj)
+
+def collide(obj1, obj2):
+    offset_x = obj2.x - obj1.x
+    offset_y = obj2.y - obj1.y
+    return obj1.mask.overlap(obj2.mask, (offset_x, offset_y)) != None
 
 #basic ship class to act as a super class to player and enemy ships
 class SHIP:
@@ -110,7 +121,7 @@ class SHIP:
     def shoot(self):
         if self.cd == 0:
             shoot_sound.play()
-            laser = Laser(self.x + self.get_width()//2 - self.laser_img.get_width()//2, self.y - 40, self.laser_img)
+            laser = Laser(self.x + self.get_width()//2 - self.laser_img.get_width()//2, self.y - 40, self.laser_img, False)
             self.lasers.append(laser)
             self.cd = 1
 
@@ -146,21 +157,56 @@ class Player(SHIP):
         super().__init__(x,y,health)
         self.ship_img = spaceship
         self.laser_img = yellow_laser_img
+        self.charge = 0
+        self.score = 0
         self.mask = pygame.mask.from_surface(self.ship_img)
 
     #moves the laser, same are superclass method but checks for collisions between player lasers and enemy ships
-    def move_lasers(self, vel, objs):
+    def move_lasers(self, vel, piercing_vel, objs):
         self.cooldown()
         for laser in self.lasers:
-            laser.move(vel)
+            if laser.piercing:
+                laser.move(piercing_vel)
+            elif not(laser.piercing):
+                laser.move(vel)
+
             if laser.out_of_bounds(HEIGHT):
                 self.lasers.remove(laser)
             else:
                 for obj in objs:    
                     if laser.collision(obj):
                         hit_sound.play()
+                        self.score += 10
                         objs.remove(obj)
-                        self.lasers.remove(laser)
+                        self.charge += 1
+                        if laser.piercing:
+                            continue
+                        if laser in self.lasers:
+                            self.lasers.remove(laser)
+
+    def shoot_p_laser(self):
+        shoot_sound.play()
+        piercing_laser = Laser(self.x + self.get_width()//2 - self.laser_img.get_width()//2, self.y - 40, yellow_laser_img, True)
+        self.lasers.append(piercing_laser)
+        self.charge -= 5
+
+    def healthbar(self, window):
+        
+        pygame.draw.rect(window, RED, (self.x, self.y + self.get_height() + 10, self.get_width(), 10))
+        pygame.draw.rect(window, GREEN, (self.x, self.y + self.get_height() + 10, self.get_width() * (self.health/100), 10))
+
+    def chargebar(self, window):
+        
+        pygame.draw.rect(window, WHITE, (self.x, self.y + self.get_height() + 30, self.get_width(), 10))
+        if self.charge <= 5:
+            pygame.draw.rect(window, BLUE, (self.x, self.y + self.get_height() + 30, self.get_width() * (self.charge/5), 10))
+        else:
+            pygame.draw.rect(window, BLUE, (self.x, self.y + self.get_height() + 30, self.get_width(), 10))
+
+    def draw(self, window):
+        super().draw(window)
+        self.healthbar(window)
+        self.chargebar(window)
 
 #enemy ship class
 class Enemy(SHIP):
@@ -185,7 +231,7 @@ class Enemy(SHIP):
     #shoots a laser but appends it from the relative position of an enemy ship
     def shoot(self):
         if self.cd == 0:
-            laser = Laser(self.x + self.get_width()//2 - self.laser_img.get_width()//2, self.y + self.get_height() + 10, self.laser_img)
+            laser = Laser(self.x + self.get_width()//2 - self.laser_img.get_width()//2, self.y + self.get_height() + 10, self.laser_img, False)
             self.lasers.append(laser)
             self.cd = 1
 
@@ -195,6 +241,18 @@ def handle_movement(pressed, ship):
         ship.x -= velocity
     if pressed[pygame.K_RIGHT] and ship.x + velocity + SS_WIDTH < WIDTH:
         ship.x += velocity
+
+def level_namer(num):
+    if num == 1:
+        return "Moonlight"
+    elif num == 2:
+        return "Shooting Stars"
+    elif num == 3:
+        return "Nebula"
+    elif num == 4:
+        return "Vortex"
+    else:
+        return "Endless Calamity"
 
 #clock to tick for FPS
 clock = pygame.time.Clock()
@@ -206,12 +264,14 @@ def main():
     run = True
     lost = False
 
+    #defining the player object
     ship = Player(450-SS_WIDTH//2, 1200, RED)
 
-    lives = 10
+    #main game attributes
     level = 0
-    level_size = 10
+    level_size = 2.5
 
+    #method to update the screen 144 times in a second
     def update_screen():
         screen.blit(background_cast, (0,0))
     
@@ -219,13 +279,17 @@ def main():
         font = pygame.font.SysFont('calibri', 50)
         lost_font = pygame.font.SysFont('calibri', 70)
 
+        name = level_namer(level)
+
         #creating indicators for lives and level
-        lives_indicator = font.render(f"Lives: {lives}", 1, WHITE)
+        score_indicator = font.render(f"Score: {int(ship.score)}", 1, WHITE)
         level_indicator = font.render(f"Level: {level}", 1, WHITE)
+        level_name = font.render(f"{name}", 1, WHITE)
 
         #shows current level and number of lives
-        screen.blit(lives_indicator, (10,10))
+        screen.blit(score_indicator, (10,10))
         screen.blit(level_indicator, (WIDTH - level_indicator.get_width() - 10, 10))
+        screen.blit(level_name, (WIDTH//2 - level_name.get_width()//2, 10))
 
         #draws enemies onto the screen
         for enemy in enemy_list:
@@ -238,6 +302,9 @@ def main():
         if lost:
             label = lost_font.render('YOU LOST', 1, WHITE)
             screen.blit(label, (WIDTH//2 - label.get_width()//2, HEIGHT//2 - label.get_height()//2))
+            pygame.display.update()
+            pygame.time.delay(5000)
+            main_menu()
 
         pygame.display.update()
 
@@ -245,15 +312,8 @@ def main():
 
         clock.tick(144)
 
-        if lives < 1 or ship.health < 1:
+        if ship.health < 1:
             lost = True
-
-        if len(enemy_list) == 0:
-            level += 1
-            level_size += 5
-            for i in range(level_size):
-                enemy = Enemy(random.randrange(100, WIDTH-100), random.randrange(-2000, -100), random.choice(["red","blue","green"]))
-                enemy_list.append(enemy)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -264,11 +324,13 @@ def main():
                 if event.key == pygame.K_SPACE:
                     ship.shoot()
 
-                if event.key == pygame.K_z and charge_bar == 5:
-                    shoot_sound.play()
-                    beam = pygame.Rect(SS.x + SS_WIDTH//2, 0, 5, SS.y)
-                    beam_list.append(beam)
+                if event.key == pygame.K_z and ship.charge >= 5:
+                    ship.shoot_p_laser()
+
+                if event.key == pygame.K_x:
+                    lost = True
         
+        #moves the enemy, moves enemy lasers, randomly generates a shot and also detects whether or not the enemy has collided with "home base"
         for enemy in enemy_list:
             enemy.move(enemy_velocity)
             enemy.move_lasers(enemy_laser_vel, ship)
@@ -276,15 +338,49 @@ def main():
             if random.randrange(0, 144 * 8) == 1:
                 enemy.shoot()
 
+            if collide(enemy, ship):
+                hit_sound.play()
+                enemy_list.remove(enemy)
+                ship.health -= 10
+
             if (enemy.y > HEIGHT - 25):
                 enemy_list.remove(enemy)
-                lives -= 1
+                ship.health -= 5
 
-        ship.move_lasers(laser_velocity, enemy_list)
+        #moves the lasers of the player ship
+        ship.move_lasers(laser_velocity, piercing_laser_vel, enemy_list)
         
+        #movement handling and redrawing the main game window
         keys_pressed = pygame.key.get_pressed()
         handle_movement(keys_pressed, ship)
-        update_screen()
 
-if __name__ == "__main__":
-    main()
+        if len(enemy_list) == 0 and not(lost):
+            level += 1
+            ship.score *= 2
+            level_size *= 2
+
+            for i in range(int(level_size)):
+                enemy = Enemy(random.randrange(100, WIDTH-100), random.randrange(-2000, -100), random.choice(["red","blue","green"]))
+                enemy_list.append(enemy)
+
+        update_screen()
+ 
+def main_menu():
+    title_font = pygame.font.SysFont('calibri', 80)
+
+    run = True
+    while run:
+        screen.blit(background_cast, (0,0))
+        title_label = title_font.render("Press the mouse to begin", 1, WHITE)
+        screen.blit(title_label, (WIDTH//2 - title_label.get_width()//2, 500))
+
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                main()
+
+    pygame.quit()
+
+main_menu()
