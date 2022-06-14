@@ -1,4 +1,3 @@
-#importing necessary modules
 import pygame
 import os
 import random
@@ -13,6 +12,8 @@ pygame.mixer.init()
 background_music = pygame.mixer.Sound(os.path.join(PATH, 'background1.wav'))
 hit_sound = pygame.mixer.Sound(os.path.join(PATH, 'Hit.mp3'))
 shoot_sound = pygame.mixer.Sound(os.path.join(PATH, 'Shoot.mp3'))
+
+background_music.play()
 
 WIDTH, HEIGHT = 900, 1400
 SS_WIDTH, SS_HEIGHT = 82,60
@@ -242,8 +243,9 @@ def handle_movement(pressed, ship):
     if pressed[pygame.K_RIGHT] and ship.x + velocity + SS_WIDTH < WIDTH:
         ship.x += velocity
 
+#returns 
 def level_namer(num):
-    if num == 1:
+    if num == 1 or num == 0:
         return "Moonlight"
     elif num == 2:
         return "Shooting Stars"
@@ -254,22 +256,44 @@ def level_namer(num):
     else:
         return "Endless Calamity"
 
+#reads and returns the highscore stored in the text file
+def readHighScore():
+    #opens highscore file and reads it. Returns the value to be used later.
+    scoreFile = open ("highscore.txt", "r")
+    highScoreStr = scoreFile.readline()
+    if highScoreStr == "":
+        highScore = 0
+    else:
+        highScore = int(highScoreStr)        
+    scoreFile.close()    
+    return highScore
+
+#writing highscore, takes the current score and writes it as the highscore if it is higher than intial highscore.
+def writeHighScore(score):
+    scoreFile = open ("highscore.txt", "w")
+    scoreFile.truncate()
+    scoreFile.write(str(score))
+    scoreFile.close() 
+
 #clock to tick for FPS
 clock = pygame.time.Clock()
 
 #main game loop
-def main():
+def main(l, l_size):
 
-    background_music.play()
     run = True
     lost = False
 
+
     #defining the player object
     ship = Player(450-SS_WIDTH//2, 1200, RED)
+    ship.score = 0
+
+    pygame.display.update()
 
     #main game attributes
-    level = 0
-    level_size = 2.5
+    level = l
+    level_size = l_size
 
     #method to update the screen 144 times in a second
     def update_screen():
@@ -299,12 +323,18 @@ def main():
 
         pygame.draw.rect(screen, RED, ENDZONE)
 
+        #if the game is lost, check if its a highscore and record in the highscore.txt file. Also display the YOU LOST message before queuing the game again.
         if lost:
             label = lost_font.render('YOU LOST', 1, WHITE)
             screen.blit(label, (WIDTH//2 - label.get_width()//2, HEIGHT//2 - label.get_height()//2))
             pygame.display.update()
+            
+            if ship.score > readHighScore():
+                writeHighScore(ship.score)
+
             pygame.time.delay(5000)
-            main_menu()
+
+            pygame.quit()
 
         pygame.display.update()
 
@@ -327,15 +357,12 @@ def main():
                 if event.key == pygame.K_z and ship.charge >= 5:
                     ship.shoot_p_laser()
 
-                if event.key == pygame.K_x:
-                    lost = True
-        
         #moves the enemy, moves enemy lasers, randomly generates a shot and also detects whether or not the enemy has collided with "home base"
         for enemy in enemy_list:
             enemy.move(enemy_velocity)
             enemy.move_lasers(enemy_laser_vel, ship)
 
-            if random.randrange(0, 144 * 8) == 1:
+            if random.randrange(0, 144 * 6) == 1:
                 enemy.shoot()
 
             if collide(enemy, ship):
@@ -368,18 +395,23 @@ def main():
 def main_menu():
     title_font = pygame.font.SysFont('calibri', 80)
 
+    #cleaning up the game screen
+
     run = True
     while run:
         screen.blit(background_cast, (0,0))
         title_label = title_font.render("Press the mouse to begin", 1, WHITE)
         screen.blit(title_label, (WIDTH//2 - title_label.get_width()//2, 500))
 
+        highscore = title_font.render(f"Highscore: {readHighScore()}", 1, WHITE)
+        screen.blit(highscore, (WIDTH//2 - highscore.get_width()//2, 700))
+
         pygame.display.update()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                main()
+                main(0,2.5)
 
     pygame.quit()
 
