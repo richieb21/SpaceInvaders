@@ -20,6 +20,7 @@ SS_WIDTH, SS_HEIGHT = 82,60
 
 FPS = 144
 
+#all necessary 'velocities needed'
 velocity = 10
 laser_velocity = -10
 piercing_laser_vel = -20
@@ -185,17 +186,20 @@ class Player(SHIP):
                         if laser in self.lasers:
                             self.lasers.remove(laser)
 
+    #shoots a piercing laser
     def shoot_p_laser(self):
         shoot_sound.play()
         piercing_laser = Laser(self.x + self.get_width()//2 - self.laser_img.get_width()//2, self.y - 40, yellow_laser_img, True)
         self.lasers.append(piercing_laser)
         self.charge -= 5
 
+    #draws a healthbar under the ship
     def healthbar(self, window):
         
         pygame.draw.rect(window, RED, (self.x, self.y + self.get_height() + 10, self.get_width(), 10))
         pygame.draw.rect(window, GREEN, (self.x, self.y + self.get_height() + 10, self.get_width() * (self.health/100), 10))
 
+    #draws a charge bar under the ship
     def chargebar(self, window):
         
         pygame.draw.rect(window, WHITE, (self.x, self.y + self.get_height() + 30, self.get_width(), 10))
@@ -258,6 +262,7 @@ def level_namer(num):
 
 #reads and returns the highscore stored in the text file
 def readHighScore():
+
     #opens highscore file and reads it. Returns the value to be used later.
     scoreFile = open ("highscore.txt", "r")
     highScoreStr = scoreFile.readline()
@@ -386,19 +391,21 @@ def main(l, l_size):
             ship.score *= 2
             level_size *= 2
 
+            #spawns enemies in
             for i in range(int(level_size)):
                 enemy = Enemy(random.randrange(100, WIDTH-100), random.randrange(-2000, -100), random.choice(["red","blue","green"]))
                 enemy_list.append(enemy)
 
         update_screen()
  
+ #main menu before launching the main game loop
 def main_menu():
     title_font = pygame.font.SysFont('calibri', 80)
 
-    #cleaning up the game screen
-
     run = True
     while run:
+
+        #displays the highscore along with instructions to begin
         screen.blit(background_cast, (0,0))
         title_label = title_font.render("Press the mouse to begin", 1, WHITE)
         screen.blit(title_label, (WIDTH//2 - title_label.get_width()//2, 500))
